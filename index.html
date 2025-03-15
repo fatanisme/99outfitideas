@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Listing</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>99 Outfit Ideas</h1>
+      <!-- Search Bar -->
+      <div class="search-container">
+        <input
+          type="text"
+          id="search"
+          onkeyup="searchProducts()"
+          placeholder="Masukan link / kode product..."
+        />
+        <span class="search-icon">🔍</span>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="category-container">
+        <div id="category-buttons"></div>
+        <button id="clear-category" class="hidden" onclick="clearCategory()">
+          X
+        </button>
+      </div>
+
+      <div id="product-list" class="product-grid"></div>
+    </div>
+
+    <script>
+      const sheetUrl =
+        "https://docs.google.com/spreadsheets/d/1pWRrZfHUUOtliSkAkyHTu4AGgGg-i2goMLF8rucM4pU/gviz/tq?tqx=out:json";
+
+      let products = [];
+
+      async function fetchProducts() {
+        try {
+          const response = await fetch(sheetUrl);
+          let text = await response.text();
+
+          // Bersihkan JSON agar bisa diparsing
+          let jsonText = text.substring(
+            text.indexOf("{"),
+            text.lastIndexOf("}") + 1
+          );
+          let jsonData = JSON.parse(jsonText);
+
+          // Ambil data dari Google Sheets
+          let rows = jsonData.table.rows;
+          products = rows.slice(1).map((row) => ({
+            link: row.c[0]?.v || "",
+            title: row.c[1]?.v || "",
+            image: row.c[2]?.v || "",
+            category: row.c[3]?.v || "",
+          }));
+
+          populateCategories();
+          displayProducts(products);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+
+      function populateCategories() {
+        const categories = [
+          ...new Set(products.map((product) => product.category)),
+        ];
+        const categoryContainer = document.getElementById("category-buttons");
+        const clearCategoryBtn = document.getElementById("clear-category");
+
+        categoryContainer.innerHTML = "";
+
+        categories.forEach((category) => {
+          const button = document.createElement("button");
+          button.classList.add("category-btn");
+          button.textContent = category;
+
+          button.onclick = () => {
+            filterProducts(category);
+            clearCategoryBtn.classList.remove("hidden"); // Tampilkan ikon silang saat kategori dipilih
+          };
+          categoryContainer.appendChild(button);
+        });
+      }
+
+      function filterProducts(selectedCategory) {
+        const buttons = document.querySelectorAll(".category-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
+
+        const activeButton = [...buttons].find((btn) =>
+          btn.textContent.includes(selectedCategory)
+        );
+        if (activeButton) activeButton.classList.add("active");
+
+        const filteredProducts =
+          selectedCategory === "all"
+            ? products
+            : products.filter(
+                (product) => product.category === selectedCategory
+              );
+
+        displayProducts(filteredProducts);
+      }
+
+      function clearCategory() {
+        document.getElementById("clear-category").classList.add("hidden"); // Sembunyikan tombol ❌
+        filterProducts("all");
+      }
+
+      function displayProducts(productList) {
+        const productContainer = document.getElementById("product-list");
+        productContainer.innerHTML = "";
+        productList.forEach((product) => {
+          const productCard = document.createElement("div");
+          productCard.classList.add("product-card");
+          productCard.innerHTML = `
+            <img src="${product.image}" alt="${product.title}">
+            <h3>${product.title}</h3>
+          `;
+
+          // Tambahkan event listener untuk membuka link saat card diklik
+          productCard.addEventListener("click", () => {
+            window.open(product.link, "_blank");
+          });
+
+          productContainer.appendChild(productCard);
+        });
+      }
+
+      function searchProducts() {
+        const searchTerm = document
+          .getElementById("search")
+          .value.toLowerCase();
+        const filteredProducts = products.filter((product) =>
+          product.title.toLowerCase().includes(searchTerm)
+        );
+        displayProducts(filteredProducts);
+      }
+
+      fetchProducts();
+    </script>
+  </body>
+</html>
